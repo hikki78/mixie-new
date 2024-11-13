@@ -1,18 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import {
-  BrowserProvider,
-  Contract,
-  keccak256,
-  AbiCoder,
-  randomBytes,
-  parseEther,
-  hexlify,
-} from "ethers";
-import { MIXER_CONTRACT_ADDRESS, MIXER_ABI } from "@/lib/contract";
+import { useState } from 'react';
+import { BrowserProvider, Contract, keccak256, AbiCoder, randomBytes, parseEther, hexlify, Signer } from 'ethers';
+import { MIXER_CONTRACT_ADDRESS, MIXER_ABI } from '@/lib/contract';
 
-type DepositStatus = "pending" | "completed";
+type DepositStatus = 'pending' | 'completed';
 
 interface Deposit {
   commitment: string;
@@ -39,18 +31,23 @@ interface DepositData {
 export function useMixer() {
   const [state, setState] = useState<MixerState>({
     deposits: [],
-    totalDeposited: "0",
+    totalDeposited: '0',
   });
   const [isLoading, setIsLoading] = useState(true);
 
   const getMixerContract = async () => {
-    if (typeof window === "undefined" || !window.ethereum) {
-      throw new Error("MetaMask is not installed");
+    if (typeof window === 'undefined' || !window.ethereum) {
+      throw new Error('MetaMask is not installed');
     }
 
-    const provider = new BrowserProvider(window.ethereum);
-    const signer = await provider.getSigner();
-    return new Contract(MIXER_CONTRACT_ADDRESS, MIXER_ABI, signer);
+    try {
+      const provider = new BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      return new Contract(MIXER_CONTRACT_ADDRESS, MIXER_ABI, signer as Signer);
+    } catch (error) {
+      console.error('Error getting contract:', error);
+      throw new Error('Failed to initialize contract');
+    }
   };
 
   const handleTransaction = async (
@@ -59,7 +56,7 @@ export function useMixer() {
     amount: string
   ) => {
     const deposits = [...state.deposits];
-    const depositIndex = deposits.findIndex((d) => d.commitment === commitment);
+    const depositIndex = deposits.findIndex(d => d.commitment === commitment);
 
     if (depositIndex >= 0) {
       deposits[depositIndex].status = status;
@@ -68,35 +65,32 @@ export function useMixer() {
         commitment,
         amount,
         timestamp: Date.now(),
-        recipient: "",
+        recipient: '',
         status,
       });
     }
 
     const totalDeposited = deposits
-      .filter((d) => d.status === "completed")
+      .filter(d => d.status === 'completed')
       .reduce((acc, curr) => acc + parseFloat(curr.amount), 0)
       .toString();
 
     setState({ deposits, totalDeposited });
   };
 
-  const deposit = async (
-    amount: string,
-    recipientAddress: string
-  ): Promise<string> => {
+  const deposit = async (amount: string, recipientAddress: string): Promise<string> => {
     try {
       setIsLoading(true);
 
       if (parseFloat(amount) < 0.001) {
-        throw new Error("Please deposit at least 0.001 SepoliaETH");
+        throw new Error('Please deposit at least 0.001 SepoliaETH');
       }
 
       // Generate commitment
       const randomValue = randomBytes(32);
       const commitment = keccak256(
         AbiCoder.defaultAbiCoder().encode(
-          ["address", "bytes32"],
+          ['address', 'bytes32'],
           [recipientAddress, randomValue]
         )
       );
@@ -107,12 +101,12 @@ export function useMixer() {
         amount,
         timestamp: Date.now(),
         recipient: recipientAddress,
-        status: "pending",
+        status: 'pending',
         randomValue: hexlify(randomValue),
       };
 
       localStorage.setItem(`mixer_${commitment}`, JSON.stringify(depositData));
-      await handleTransaction(commitment, "pending", amount);
+      await handleTransaction(commitment, 'pending', amount);
 
       // Send transaction
       const contract = await getMixerContract();
@@ -123,14 +117,14 @@ export function useMixer() {
       await tx.wait();
 
       // Update deposit status
-      depositData.status = "completed";
+      depositData.status = 'completed';
       localStorage.setItem(`mixer_${commitment}`, JSON.stringify(depositData));
-      await handleTransaction(commitment, "completed", amount);
+      await handleTransaction(commitment, 'completed', amount);
 
       return commitment;
     } catch (error: any) {
-      console.error("Deposit error:", error);
-      throw new Error(error.message || "Failed to deposit funds");
+      console.error('Deposit error:', error);
+      throw new Error(error.message || 'Failed to deposit funds');
     } finally {
       setIsLoading(false);
     }
@@ -140,16 +134,14 @@ export function useMixer() {
     try {
       setIsLoading(true);
 
-      const depositData = JSON.parse(
-        localStorage.getItem(`mixer_${commitment}`) || "{}"
-      ) as DepositData;
+      const depositData = JSON.parse(localStorage.getItem(`mixer_${commitment}`) || '{}') as DepositData;
       if (!depositData.randomValue || !depositData.recipient) {
-        throw new Error("Invalid commitment or deposit data not found");
+        throw new Error('Invalid commitment or deposit data not found');
       }
 
       const nullifierHash = keccak256(
         AbiCoder.defaultAbiCoder().encode(
-          ["bytes32", "address"],
+          ['bytes32', 'address'],
           [depositData.randomValue, depositData.recipient]
         )
       );
@@ -160,23 +152,21 @@ export function useMixer() {
 
       // Remove deposit data after successful withdrawal
       localStorage.removeItem(`mixer_${commitment}`);
-
+      
       // Update state
-      const deposits = state.deposits.filter(
-        (d) => d.commitment !== commitment
-      );
+      const deposits = state.deposits.filter(d => d.commitment !== commitment);
       setState({
         deposits,
         totalDeposited: deposits
-          .filter((d) => d.status === "completed")
+          .filter(d => d.status === 'completed')
           .reduce((acc, curr) => acc + parseFloat(curr.amount), 0)
-          .toString(),
+          .toString()
       });
 
       return receipt.hash;
     } catch (error: any) {
-      console.error("Withdrawal error:", error);
-      throw new Error(error.message || "Failed to withdraw funds");
+      console.error('Withdrawal error:', error);
+      throw new Error(error.message || 'Failed to withdraw funds');
     } finally {
       setIsLoading(false);
     }
