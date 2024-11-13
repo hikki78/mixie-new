@@ -1,89 +1,68 @@
-import { ethers } from 'ethers';
+import { ethers } from "ethers";
+import { EvmAbiItem } from "@moralisweb3/common-evm-utils";
 
-export const MIXER_ABI = [
+// Define the ABI in the correct Moralis format
+export const MIXER_ABI: EvmAbiItem[] = [
   {
-    "inputs": [],
-    "stateMutability": "nonpayable",
-    "type": "constructor"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
+    type: "event",
+    anonymous: false,
+    inputs: [
       {
-        "indexed": true,
-        "internalType": "bytes32",
-        "name": "commitment",
-        "type": "bytes32"
+        indexed: true,
+        name: "commitment",
+        type: "bytes32",
+        internalType: "bytes32",
       },
       {
-        "indexed": false,
-        "internalType": "uint32",
-        "name": "leafIndex",
-        "type": "uint32"
+        indexed: false,
+        name: "leafIndex",
+        type: "uint32",
+        internalType: "uint32",
       },
       {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "timestamp",
-        "type": "uint256"
-      }
+        indexed: false,
+        name: "timestamp",
+        type: "uint256",
+        internalType: "uint256",
+      },
     ],
-    "name": "Deposit",
-    "type": "event"
+    name: "Deposit",
   },
   {
-    "anonymous": false,
-    "inputs": [
+    type: "function",
+    name: "deposit",
+    inputs: [
       {
-        "indexed": false,
-        "internalType": "address",
-        "name": "to",
-        "type": "address"
+        name: "_commitment",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
+    ],
+    outputs: [],
+    stateMutability: "payable",
+  },
+  {
+    type: "function",
+    name: "withdraw",
+    inputs: [
+      {
+        name: "_nullifierHash",
+        type: "bytes32",
+        internalType: "bytes32",
       },
       {
-        "indexed": false,
-        "internalType": "bytes32",
-        "name": "nullifierHash",
-        "type": "bytes32"
-      }
-    ],
-    "name": "Withdrawal",
-    "type": "event"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "bytes32",
-        "name": "_commitment",
-        "type": "bytes32"
-      }
-    ],
-    "name": "deposit",
-    "outputs": [],
-    "stateMutability": "payable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "bytes32",
-        "name": "_nullifierHash",
-        "type": "bytes32"
+        name: "_recipient",
+        type: "address",
+        internalType: "address payable",
       },
-      {
-        "internalType": "address payable",
-        "name": "_recipient",
-        "type": "address"
-      }
     ],
-    "name": "withdraw",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  }
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
 ];
 
-export const MIXER_CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_MIXER_CONTRACT_ADDRESS || '';
+export const MIXER_CONTRACT_ADDRESS =
+  process.env.NEXT_PUBLIC_MIXER_CONTRACT_ADDRESS || "";
 
 export function getMixerContract(signer: ethers.Signer) {
   return new ethers.Contract(MIXER_CONTRACT_ADDRESS, MIXER_ABI, signer);

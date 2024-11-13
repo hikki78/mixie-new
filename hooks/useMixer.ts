@@ -1,154 +1,185 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { ethers } from 'ethers';
-import { Moralis } from '@/lib/moralis';
-import { getMixerContract } from '@/lib/contract';
+import { useState } from "react";
+import {
+  BrowserProvider,
+  Contract,
+  keccak256,
+  AbiCoder,
+  randomBytes,
+  parseEther,
+  hexlify,
+} from "ethers";
+import { MIXER_CONTRACT_ADDRESS, MIXER_ABI } from "@/lib/contract";
+
+type DepositStatus = "pending" | "completed";
+
+interface Deposit {
+  commitment: string;
+  amount: string;
+  timestamp: number;
+  recipient: string;
+  status: DepositStatus;
+}
 
 export interface MixerState {
-  deposits: {
-    commitment: string;
-    amount: string;
-    timestamp: number;
-    recipient: string;
-    status: 'pending' | 'completed';
-  }[];
+  deposits: Deposit[];
   totalDeposited: string;
+}
+
+interface DepositData {
+  commitment: string;
+  amount: string;
+  timestamp: number;
+  recipient: string;
+  status: DepositStatus;
+  randomValue: string;
 }
 
 export function useMixer() {
   const [state, setState] = useState<MixerState>({
     deposits: [],
-    totalDeposited: '0',
+    totalDeposited: "0",
   });
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    loadMixerState();
-  }, []);
+  const getMixerContract = async () => {
+    if (typeof window === "undefined" || !window.ethereum) {
+      throw new Error("MetaMask is not installed");
+    }
 
-  const loadMixerState = async () => {
+    const provider = new BrowserProvider(window.ethereum);
+    const signer = await provider.getSigner();
+    return new Contract(MIXER_CONTRACT_ADDRESS, MIXER_ABI, signer);
+  };
+
+  const handleTransaction = async (
+    commitment: string,
+    status: DepositStatus,
+    amount: string
+  ) => {
+    const deposits = [...state.deposits];
+    const depositIndex = deposits.findIndex((d) => d.commitment === commitment);
+
+    if (depositIndex >= 0) {
+      deposits[depositIndex].status = status;
+    } else {
+      deposits.push({
+        commitment,
+        amount,
+        timestamp: Date.now(),
+        recipient: "",
+        status,
+      });
+    }
+
+    const totalDeposited = deposits
+      .filter((d) => d.status === "completed")
+      .reduce((acc, curr) => acc + parseFloat(curr.amount), 0)
+      .toString();
+
+    setState({ deposits, totalDeposited });
+  };
+
+  const deposit = async (
+    amount: string,
+    recipientAddress: string
+  ): Promise<string> => {
     try {
       setIsLoading(true);
-      const storedDeposits = Object.entries(localStorage)
-        .filter(([key]) => key.startsWith('mixer_'))
-        .map(([_, value]) => JSON.parse(value as string));
 
-      const chainId = process.env.NEXT_PUBLIC_CHAIN_ID || '11155111';
-      const contractAddress = process.env.NEXT_PUBLIC_MIXER_CONTRACT_ADDRESS;
-
-      if (contractAddress) {
-        const response = await Moralis.EvmApi.events.getContractEvents({
-          chain: chainId,
-          address: contractAddress,
-        });
-
-        const events = response.result;
-        if (events) {
-          events.forEach(event => {
-            if (event.data && event.data.commitment) {
-              const commitment = event.data.commitment.toString();
-              const storedDeposit = storedDeposits.find(d => d.commitment === commitment);
-              if (storedDeposit) {
-                storedDeposit.status = 'completed';
-              }
-            }
-          });
-        }
+      if (parseFloat(amount) < 0.001) {
+        throw new Error("Please deposit at least 0.001 SepoliaETH");
       }
 
-      setState({
-        deposits: storedDeposits,
-        totalDeposited: (storedDeposits.reduce(
-          (acc, curr) => acc + parseFloat(curr.amount),
-          0
-        ) * 0.001).toString(), // Adjust for new denomination
+      // Generate commitment
+      const randomValue = randomBytes(32);
+      const commitment = keccak256(
+        AbiCoder.defaultAbiCoder().encode(
+          ["address", "bytes32"],
+          [recipientAddress, randomValue]
+        )
+      );
+
+      // Store deposit data
+      const depositData: DepositData = {
+        commitment,
+        amount,
+        timestamp: Date.now(),
+        recipient: recipientAddress,
+        status: "pending",
+        randomValue: hexlify(randomValue),
+      };
+
+      localStorage.setItem(`mixer_${commitment}`, JSON.stringify(depositData));
+      await handleTransaction(commitment, "pending", amount);
+
+      // Send transaction
+      const contract = await getMixerContract();
+      const tx = await contract.deposit(commitment, {
+        value: parseEther(amount),
       });
-    } catch (error) {
-      console.error('Error loading mixer state:', error);
+
+      await tx.wait();
+
+      // Update deposit status
+      depositData.status = "completed";
+      localStorage.setItem(`mixer_${commitment}`, JSON.stringify(depositData));
+      await handleTransaction(commitment, "completed", amount);
+
+      return commitment;
+    } catch (error: any) {
+      console.error("Deposit error:", error);
+      throw new Error(error.message || "Failed to deposit funds");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const deposit = async (amount: string, recipientAddress: string) => {
-    if (!window.ethereum) {
-      throw new Error('MetaMask is not installed');
+  const withdraw = async (commitment: string): Promise<string> => {
+    try {
+      setIsLoading(true);
+
+      const depositData = JSON.parse(
+        localStorage.getItem(`mixer_${commitment}`) || "{}"
+      ) as DepositData;
+      if (!depositData.randomValue || !depositData.recipient) {
+        throw new Error("Invalid commitment or deposit data not found");
+      }
+
+      const nullifierHash = keccak256(
+        AbiCoder.defaultAbiCoder().encode(
+          ["bytes32", "address"],
+          [depositData.randomValue, depositData.recipient]
+        )
+      );
+
+      const contract = await getMixerContract();
+      const tx = await contract.withdraw(nullifierHash, depositData.recipient);
+      const receipt = await tx.wait();
+
+      // Remove deposit data after successful withdrawal
+      localStorage.removeItem(`mixer_${commitment}`);
+
+      // Update state
+      const deposits = state.deposits.filter(
+        (d) => d.commitment !== commitment
+      );
+      setState({
+        deposits,
+        totalDeposited: deposits
+          .filter((d) => d.status === "completed")
+          .reduce((acc, curr) => acc + parseFloat(curr.amount), 0)
+          .toString(),
+      });
+
+      return receipt.hash;
+    } catch (error: any) {
+      console.error("Withdrawal error:", error);
+      throw new Error(error.message || "Failed to withdraw funds");
+    } finally {
+      setIsLoading(false);
     }
-
-    if (parseFloat(amount) !== 0.001) {
-      throw new Error('Please deposit exactly 0.001 SepoliaETH');
-    }
-
-    const provider = new ethers.providers.Web3Provider(window.ethereum);
-    const signer = provider.getSigner();
-    const contract = getMixerContract(signer);
-
-    // Generate commitment using recipient address and random value
-    const randomValue = ethers.randomBytes(32);
-    const commitment = ethers.keccak256(
-      ethers.AbiCoder.defaultAbiCoder().encode(
-        ['address', 'bytes32'],
-        [recipientAddress, randomValue]
-      )
-    );
-
-    // Store deposit data
-    const depositData = {
-      commitment,
-      amount: '0.001',
-      timestamp: Date.now(),
-      recipient: recipientAddress,
-      status: 'pending',
-      randomValue: ethers.hexlify(randomValue),
-    };
-
-    localStorage.setItem(`mixer_${commitment}`, JSON.stringify(depositData));
-
-    // Send transaction
-    const tx = await contract.deposit(commitment, {
-      value: ethers.parseEther('0.001'),
-    });
-
-    await tx.wait();
-
-    // Update deposit status
-    depositData.status = 'completed';
-    localStorage.setItem(`mixer_${commitment}`, JSON.stringify(depositData));
-
-    await loadMixerState();
-    return commitment;
-  };
-
-  const withdraw = async (commitment: string) => {
-    if (!window.ethereum) {
-      throw new Error('MetaMask is not installed');
-    }
-
-    const depositData = JSON.parse(localStorage.getItem(`mixer_${commitment}`) || '{}');
-    if (!depositData.randomValue || !depositData.recipient) {
-      throw new Error('Invalid commitment or deposit data not found');
-    }
-
-    const provider = new ethers.providers.Web3Provider(window.ethereum);
-    const signer = provider.getSigner();
-    const contract = getMixerContract(signer);
-
-    const nullifierHash = ethers.keccak256(
-      ethers.AbiCoder.defaultAbiCoder().encode(
-        ['bytes32', 'address'],
-        [depositData.randomValue, depositData.recipient]
-      )
-    );
-
-    const tx = await contract.withdraw(nullifierHash, depositData.recipient);
-    await tx.wait();
-
-    // Remove deposit data after successful withdrawal
-    localStorage.removeItem(`mixer_${commitment}`);
-    await loadMixerState();
-
-    return nullifierHash;
   };
 
   return {
