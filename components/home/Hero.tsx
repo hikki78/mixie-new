@@ -36,24 +36,36 @@ export function Hero() {
                 <CarouselItem className="md:basis-1/2">
                   <div className="p-6">
                     <div className="rounded-none border-4 border-black bg-white p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                      <h3 className="text-xl font-bold text-black mb-2">Secure Mixing</h3>
-                      <p className="text-gray-600">Advanced encryption for your transactions</p>
+                      <h3 className="text-xl font-bold text-black mb-2">
+                        Secure Mixing
+                      </h3>
+                      <p className="text-gray-600">
+                        Advanced encryption for your transactions
+                      </p>
                     </div>
                   </div>
                 </CarouselItem>
                 <CarouselItem className="md:basis-1/2">
                   <div className="p-6">
                     <div className="rounded-none border-4 border-black bg-white p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                      <h3 className="text-xl font-bold text-black mb-2">Fast Processing</h3>
-                      <p className="text-gray-600">Lightning-quick mixing and swaps</p>
+                      <h3 className="text-xl font-bold text-black mb-2">
+                        Fast Processing
+                      </h3>
+                      <p className="text-gray-600">
+                        Lightning-quick mixing and swaps
+                      </p>
                     </div>
                   </div>
                 </CarouselItem>
                 <CarouselItem className="md:basis-1/2">
                   <div className="p-6">
                     <div className="rounded-none border-4 border-black bg-white p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                      <h3 className="text-xl font-bold text-black mb-2">Complete Privacy</h3>
-                      <p className="text-gray-600">Your transactions, your business</p>
+                      <h3 className="text-xl font-bold text-black mb-2">
+                        Complete Privacy
+                      </h3>
+                      <p className="text-gray-600">
+                        Your transactions, your business
+                      </p>
                     </div>
                   </div>
                 </CarouselItem>
@@ -65,17 +77,23 @@ export function Hero() {
 
           <div className="flex justify-center gap-4">
             <Link href="/mix" prefetch={false}>
-              <Button size="lg" className="text-lg px-8 rounded-none border-4 border-black bg-[#FF3366] text-white hover:bg-[#FF3366]/90 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+              <Button
+                size="lg"
+                className="text-lg px-8 rounded-none border-4 border-black bg-[#FF3366] text-white hover:bg-[#FF3366]/90 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
+              >
                 Start Mixing
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </Link>
-            <Link href="/swap" prefetch={false}>
-              <Button size="lg" variant="outline" className="text-lg px-8 rounded-none border-4 border-black bg-white text-black hover:bg-gray-100 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                Swap Tokens
-                <Repeat className="ml-2 h-4 w-4" />
-              </Button>
-            </Link>
+            <Button
+              size="lg"
+              variant="outline"
+              disabled
+              className="text-lg px-8 rounded-none border-4 border-black bg-white text-black opacity-50 cursor-not-allowed shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
+            >
+              Swap Tokens
+              <Repeat className="ml-2 h-4 w-4" />
+            </Button>
           </div>
 
           <MarketChart />

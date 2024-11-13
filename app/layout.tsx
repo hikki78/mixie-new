@@ -1,16 +1,13 @@
-import './globals.css';
-import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
-import { ThemeProvider } from '@/components/ThemeProvider';
+import "./globals.css";
+import type { Metadata } from "next";
+import { ThemeProvider } from "@/components/ThemeProvider";
 import { Toaster } from "@/components/ui/toaster";
-import Header from '@/components/Header';
-import Footer from '@/components/Footer';
-
-const inter = Inter({ subsets: ['latin'] });
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
 
 export const metadata: Metadata = {
-  title: 'Mixie - Anonymous Transactions',
-  description: 'Secure and anonymous cryptocurrency mixing service',
+  title: "Mixie - Anonymous Transactions",
+  description: "Secure and anonymous cryptocurrency mixing service",
 };
 
 export default function RootLayout({
@@ -20,7 +17,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={inter.className}>
+      <body className="font-sans antialiased">
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

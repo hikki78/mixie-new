@@ -9,11 +9,7 @@ import {
   parseEther,
   hexlify,
 } from "ethers";
-import {
-  MIXER_CONTRACT_ADDRESS,
-  MIXER_ABI,
-  type MixerContract,
-} from "@/lib/contract";
+import { MIXER_CONTRACT_ADDRESS, MIXER_ABI } from "@/lib/contract";
 
 declare global {
   interface Window {
@@ -36,11 +32,7 @@ export function useMixerOperations() {
 
     const provider = new BrowserProvider(window.ethereum);
     const signer = await provider.getSigner();
-    const contract = new Contract(
-      MIXER_CONTRACT_ADDRESS,
-      MIXER_ABI,
-      signer
-    ) as MixerContract;
+    const contract = new Contract(MIXER_CONTRACT_ADDRESS, MIXER_ABI, signer);
 
     // Generate commitment using recipient address and random value
     const randomValue = randomBytes(32);
@@ -91,11 +83,7 @@ export function useMixerOperations() {
 
     const provider = new BrowserProvider(window.ethereum);
     const signer = await provider.getSigner();
-    const contract = new Contract(
-      MIXER_CONTRACT_ADDRESS,
-      MIXER_ABI,
-      signer
-    ) as MixerContract;
+    const contract = new Contract(MIXER_CONTRACT_ADDRESS, MIXER_ABI, signer);
 
     const nullifierHash = keccak256(
       AbiCoder.defaultAbiCoder().encode(
