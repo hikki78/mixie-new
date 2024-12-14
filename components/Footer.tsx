@@ -24,7 +24,7 @@ export default function Footer() {
               </li>
               <li>
                 <a href="/faq" className="text-muted-foreground hover:text-primary transition-colors">
-                  FAQ
+                  More
                 </a>
               </li>
             </ul>
@@ -33,7 +33,7 @@ export default function Footer() {
             <h3 className="text-lg font-semibold mb-4">Contact</h3>
             <p className="text-muted-foreground">
               For support and inquiries:<br />
-              support@mixie.example
+              info@hikki.me
             </p>
           </div>
         </div>
